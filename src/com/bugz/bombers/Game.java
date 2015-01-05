@@ -1,10 +1,13 @@
 package com.bugz.bombers;
 
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 
 import com.bugz.bombers.graphics.Screen;
 import com.bugz.bombers.input.Keyboard;
+import com.bugz.bombers.players.LocalPlayer;
 
+import java.awt.BorderLayout;
 import java.awt.Canvas;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -17,6 +20,9 @@ public class Game extends Canvas implements Runnable {
 	private static final long serialVersionUID = 1L;
 
 	private JFrame frame;
+	private JPanel setupPanel;
+	
+	private GameController gameController;
 	
 	public static int HEIGHT = 600;
 	public static int WIDTH = HEIGHT * 16 / 9;
@@ -35,10 +41,15 @@ public class Game extends Canvas implements Runnable {
 	private double targetUPS = 30;
 	
 	public static void main(String[] args) {
+		//Instantiate the game (canvas)
 		Game game = new Game();
+		
+		//Set up the JFrame here, so that the game instance canvas can be added to it
 		game.frame.setResizable(false);
 		game.frame.setTitle(title);
-		game.frame.add(game);
+		game.frame.setLayout(new BorderLayout());
+		game.frame.add(game, BorderLayout.CENTER);
+		game.frame.add(game.setupPanel, BorderLayout.WEST);
 		game.frame.pack();
 		game.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		game.frame.setLocationRelativeTo(null);
@@ -51,13 +62,23 @@ public class Game extends Canvas implements Runnable {
 		frame = new JFrame();
 		setPreferredSize(new Dimension(WIDTH, HEIGHT));
 		
+		setupPanel = new JPanel();
+		setupPanel.setPreferredSize(new Dimension(200, 200));
+		
 		keyboard = new Keyboard();
 		addKeyListener(keyboard);
 		
+		gameController = new GameController();
+		setupTestGame();
+		
 		screen = new Screen(WIDTH, HEIGHT, pixels);
 	}
+	
+	private void setupTestGame() {
+		gameController.registerPlayer(new LocalPlayer(keyboard));
+	}
 
-
+	//Main loop. Controls throttling.
 	public void run() {
 		long lastUpdate = System.nanoTime();
 		long now;
@@ -79,12 +100,11 @@ public class Game extends Canvas implements Runnable {
 				numUpdatesPending -= 1.0;
 			}
 			
-			
+			//Render as fast as possible given the hard limit imposed by the sleep
 			render();
 			renderCount++;
 			
-			//Limit fps to 1000. Otherwise it was doing 32Mfps!
-			
+			//Hard limit fps to 100. Otherwise it was doing 32Mfps!
 			try {
 				Thread.sleep(10);
 			} catch (InterruptedException e) {
@@ -107,8 +127,11 @@ public class Game extends Canvas implements Runnable {
 	}
 
 	private void update() {
-		keyboard.update();
-		System.out.println(keyboard.act1long);
+		if(gameController.isRunning()) {
+			//Update keyboard for use by local players
+			keyboard.update();
+	
+		}		
 	}
 	
 	private void render() {
@@ -123,7 +146,10 @@ public class Game extends Canvas implements Runnable {
 		screen.render();
 		
 		Graphics g = bs.getDrawGraphics();
+		
 		g.drawImage(image, 0, 0, getWidth(), getHeight(), null);
+		
+		//Draw map
 		
 		g.dispose();
 		bs.show();
